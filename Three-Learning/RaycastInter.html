@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>点云绑定鼠标事件测试</title>
+        <script src="three.js/build/three.js"></script>
+        <script src="three.js/examples/jsm/controls/OrbitControls.js" type="module"></script>
+        <script src="dat.gui/build/dat.gui.min.js"></script>
+        <script src="three.js/examples/jsm/libs/stats.module.js"></script>
+    </head>
+
+    <body onload="main()">
+        <script>
+            var render = null;
+            var scene = null;
+            var camera = null;
+            function main() {
+                const canvas = document.querySelector('#mainCanvas');
+                renderer = new THREE.WebGLRenderer({canvas});
+                scene = new THREE.Scene();
+                const stats = new Stats();
+                canvas.appendChild(stats.dom);
+                ccontent = canvas.getBoundingClientRect();
+                camera = new THREE.PerspectiveCamera(75, ccontent.width/ccontent.height, 0.1, 1000);
+                camera.position.set(0, 100, 0);
+                scene.add(camera);
+
+                cameraControls = new THREE.OrbitControls(camera, canvas);
+                cameraControls.enableZoom = true;
+                cameraControls.enableRotate = true;
+                cameraControls.enablePan = true;
+                cameraControls.rotateSpeed = 0.3;
+                cameraControls.zoomSpeed = 1.0;
+                cameraControls.panSpeed = 2.0;
+                cameraControls.target = scene.position;
+                camera.lookAt(scene.position);
+
+                var light = new THREE.DirectionalLight(0xffffff);
+                light.position.set(0, 1000, 0);
+                scene.add(light);
+
+                const pointer = new THREE.Vector2();
+
+                const BOX_SIZE = 5;
+
+                const lgeo = new THREE.BufferGeometry();
+
+                const curve = new THREE.CubicBezierCurve3(
+                    new THREE.Vector3(-40, -60, -40),
+                    new THREE.Vector3(-40, 80, -40),
+                    new THREE.Vector3(40, 80, 40),
+                    new THREE.Vector3(40, -60, 40)
+                );
+                const points = curve.getPoints(200);
+                lgeo.setFromPoints(points);
+                const material = new THREE.LineBasicMaterial({color: 0xff0000});
+                const line = new THREE.Line(lgeo, material);
+                scene.add(line);
+                
+                createGUI();
+                animate();
+            }
+
+            function createGUI() {
+                const gui = new dat.gui.GUI();
+                const panelMain = gui.addFolder('左键旋转，右键平移，滚轮缩放');
+            }
+
+            function animate() {
+                requestAnimationFrame(animate);
+                stats.update();
+            }
+
+            function render() {
+                renderer.render(scene, camera);
+            }
+        </script>
+        <canvas id="mainCanvas" width="800px" height="600px"></canvas>
+    </body>
+</html>
