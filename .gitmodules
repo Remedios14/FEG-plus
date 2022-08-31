@@ -1,0 +1,6 @@
+[submodule "Three-Learning/dat.gui"]
+	path = Three-Learning/dat.gui
+	url = https://github.com/dataarts/dat.gui.git
+[submodule "Three-Learning/three.js"]
+	path = Three-Learning/three.js
+	url = https://github.com/mrdoob/three.js.git
