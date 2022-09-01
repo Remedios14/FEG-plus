@@ -1,3 +1,4 @@
+// discarded，刚发现可以直接用 setRGB 按照 [0, 1] 范围插值
 function GradColor(lbc, ubc) {
     if (lbc === undefined) {
         lbc = '#008080';

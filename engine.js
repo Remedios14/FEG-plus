@@ -2,9 +2,15 @@ var scene = null;
 var camera = null;
 var renderer = null;
 var cameraControls = null;
+var canvas = null;
+var ccontent = null;
 var gradc = null;
 var jreader = null;
 var stats = null;
+var OnMesh = null;
+var rayc = null;
+var orthCam = null;
+var orthCtrl = null;
 
 // 后续读取模型中心
 const model_center = new THREE.Vector3(-1126.244, 15.13, -62);
@@ -16,6 +22,7 @@ const cubes = [];
 const cvalues = [];
 const invisibles = [];
 var cnts = 0;
+var pointer = new THREE.Vector2();
 
 // 初始化的位置，以模型中心为参考
 const cam_ori = (new THREE.Vector3(0, 150, 0)).add(model_center);
@@ -25,14 +32,17 @@ const light_ori = (new THREE.Vector3(0, 1000, 0)).add(model_center);
 const BSZ = 0.5;
 const geometry = new THREE.BoxGeometry(BSZ, BSZ, BSZ);
 
+THREE.Mesh.prototype.linked_val = null;
+
 function MapMain() {
-    const canvas = document.querySelector('#mainCanvas');
+    canvas = document.querySelector('#mainCanvas');
     renderer = new THREE.WebGLRenderer({canvas});
     renderer.setClearColor(0x4B0082);
     scene = new THREE.Scene();
+    rayc = new THREE.Raycaster();
     gradc = new GradColor();
-    canvas_centent = canvas.getBoundingClientRect();
-    camera = new THREE.PerspectiveCamera(75, canvas_centent.width / canvas_centent.height, 0.1, 1000);
+    ccontent = canvas.getBoundingClientRect();
+    camera = new THREE.PerspectiveCamera(75, ccontent.width / ccontent.height, 0.1, 1000);
     camera.position.set(cam_ori.x, cam_ori.y, cam_ori.z);
     scene.add(camera);
 
@@ -41,14 +51,30 @@ function MapMain() {
     container.appendChild(stats.dom);
 
     cameraControls = new THREE.OrbitControls(camera, canvas);
-    cameraControls.enableZoom = true;
-    cameraControls.enableRotate = true;
-    cameraControls.enablePan = true;
+    cameraControls.enableZoom = true; // 滚轮-缩放/变焦
+    cameraControls.enableRotate = true; // 左键-旋转
+    cameraControls.enablePan = true; // 右键-平移
     cameraControls.rotateSpeed = 0.3;
     cameraControls.zoomSpeed = 1.0;
     cameraControls.panSpeed = 2.0;
     cameraControls.target = model_center;
     camera.lookAt(model_center);
+
+    // {
+    //     orthCam = new THREE.OrthographicCamera(ccontent.width / -2, ccontent.width / 2, ccontent.height / 2, ccontent.height / -2, 1, 1000);
+    //     orthCam.position.set(cam_ori.x, cam_ori.y, cam_ori.z);
+    //     scene.add(orthCam);
+
+    //     orthCtrl = new THREE.OrbitControls(orthCam, canvas);
+    //     orthCtrl.enableZoom = true; // 滚轮-缩放/变焦
+    //     orthCtrl.enableRotate = true; // 左键-旋转
+    //     orthCtrl.enablePan = true; // 右键-平移
+    //     orthCtrl.rotateSpeed = 0.3;
+    //     orthCtrl.zoomSpeed = 1.0;
+    //     orthCtrl.panSpeed = 2.0;
+    //     orthCtrl.target = model_center;
+    //     orthCam.lookAt(model_center);
+    // }
     
     var loader = new THREE.OBJLoader();
     loader.load('Station.obj', function(obj) {
@@ -64,6 +90,14 @@ function MapMain() {
     var light = new THREE.DirectionalLight(0xffffff);
     light.position.set(light_ori.x, light_ori.y, light_ori.z);
     scene.add(light);
+
+    const onGeo = new THREE.BoxGeometry(BSZ * 1.5, BSZ * 1.5, BSZ * 1.5);
+    onMat = new THREE.MeshBasicMaterial( { color: 0xff0000, opacity: 0.5, transparent: true } );
+    OnMesh = new THREE.Mesh(onGeo, onMat);
+    scene.add(OnMesh);
+
+    document.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('pointerdown', onPointerDown);
 
     createGUI();
     loadProfile();
@@ -84,6 +118,7 @@ function loadProfile() {
         cube.position.x = pd.x;
         cube.position.y = pd.y;
         cube.position.z = pd.z;
+        cube.linked_val = pd.batchCnt;
         cubes.push(cube);
         cvalues.push(pd.batchCnt);
         scene.add(cube);
@@ -122,7 +157,8 @@ var global = {
             invisibles[i].visible = true;
         }
         invisibles.length = 0;
-    }
+    },
+    camSwitcher: true,
 };
 var vFilter = new function() {
     this.lbound = 0;
@@ -159,7 +195,8 @@ function createGUI() {
     const debugLog = panelMain.addFolder('一些debug用途的输出');
     const valFilter = panelMain.addFolder('按照数值进行筛选');
     const rtoFilter = panelMain.addFolder('按照比例进行筛选');
-    panelMain.add(global, 'restore').name('恢复所有隐藏节点');
+    panelMain.add(global, 'restore').name('恢复隐藏节点');
+    panelMain.add(global, 'camSwitcher').name('透视/正交切换');
     dataCube.add(options, 'dataX').name('采集点X坐标');
     dataCube.add(options, 'dataY').name('采集点Y坐标');
     dataCube.add(options, 'dataZ').name('采集点Z坐标');
@@ -183,8 +220,37 @@ function createGUI() {
 }
 
 { // 进行事件绑定函数定义
-{
-    
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// 因为 Raycast 的横纵轴范围是 [-1, 1] 所以都 × 2 再平移
+function onPointerMove(event) {
+    pointer.set(((event.clientX - ccontent.left) / ccontent.width) * 2 - 1,
+        - ((event.clientY - ccontent.top) / ccontent.height) * 2 + 1);
+    rayc.setFromCamera(pointer, camera);
+    const intersects = rayc.intersectObjects(cubes, false);
+    if (intersects.length > 0) {
+        const intersect = intersects[0];
+        OnMesh.position.copy(intersect.object.position);
+        const matC = intersect.object.material.color;
+        OnMesh.material.color.setRGB(1 - matC.r, 1 - matC.g, 1 - matC.b);
+    }
+}
+
+function onPointerDown(event) {
+    pointer.set(((event.clientX - ccontent.left) / ccontent.width) * 2 - 1,
+        - ((event.clientY - ccontent.top) / ccontent.height) * 2 + 1);
+    rayc.setFromCamera(pointer, camera);
+    const intersects = rayc.intersectObjects(cubes, false);
+    if (intersects.length > 0) {
+        const intersect = intersects[0];
+        console.log("mouse clicked on mesh object, log it's linking value below");
+        console.log(intersect.object.linked_val);
+    }
 }
 }
 
@@ -196,4 +262,9 @@ function animate() {
 
 function render() {
     renderer.render(scene, camera);
+    // if (global.camSwitcher) {
+    //     renderer.render(scene, camera);
+    // } else {
+    //     renderer.render(scene, orthCam);
+    // }
 }
