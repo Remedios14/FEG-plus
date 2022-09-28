@@ -33,6 +33,7 @@ const BSZ = 0.5;
 const geometry = new THREE.BoxGeometry(BSZ, BSZ, BSZ);
 
 THREE.Mesh.prototype.linked_val = null;
+THREE.Mesh.prototype.linked_sec = null;
 
 function MapMain() {
     canvas = document.querySelector('#mainCanvas');
@@ -76,6 +77,13 @@ function MapMain() {
     //     orthCam.lookAt(model_center);
     // }
     
+    // var loader = new THREE.FBXLoader();
+    // loader.load('Scene.fbx', function(obj) {
+    //     console.log("load fbx obj success!")
+    //     mesh = obj.children[0].clone();
+    //     scene.add(mesh);
+    // })
+
     var loader = new THREE.OBJLoader();
     loader.load('Station.obj', function(obj) {
         obj.traverse(function(child) {
@@ -119,6 +127,7 @@ function loadProfile() {
         cube.position.y = pd.y;
         cube.position.z = pd.z;
         cube.linked_val = pd.batchCnt;
+        cube.linked_sec = pd.drawCallCnt;
         cubes.push(cube);
         cvalues.push(pd.batchCnt);
         scene.add(cube);
@@ -159,6 +168,12 @@ var global = {
         invisibles.length = 0;
     },
     camSwitcher: true,
+    profileSwitcher: function() {
+        for (var i = 0; i < cnts; i++) {
+            col = gradc.valLerp([0, 300], cubes[i].linked_sec);
+            cubes[i].material.color.set(col);
+        }
+    }
 };
 var vFilter = new function() {
     this.lbound = 0;
@@ -197,6 +212,7 @@ function createGUI() {
     const rtoFilter = panelMain.addFolder('按照比例进行筛选');
     panelMain.add(global, 'restore').name('恢复隐藏节点');
     panelMain.add(global, 'camSwitcher').name('透视/正交切换');
+    panelMain.add(global, 'profileSwitcher').name('切换性能指标');
     dataCube.add(options, 'dataX').name('采集点X坐标');
     dataCube.add(options, 'dataY').name('采集点Y坐标');
     dataCube.add(options, 'dataZ').name('采集点Z坐标');
@@ -235,6 +251,7 @@ function onPointerMove(event) {
     const intersects = rayc.intersectObjects(cubes, false);
     if (intersects.length > 0) {
         const intersect = intersects[0];
+        if (!intersect.object.visible) return;
         OnMesh.position.copy(intersect.object.position);
         const matC = intersect.object.material.color;
         OnMesh.material.color.setRGB(1 - matC.r, 1 - matC.g, 1 - matC.b);
@@ -248,6 +265,7 @@ function onPointerDown(event) {
     const intersects = rayc.intersectObjects(cubes, false);
     if (intersects.length > 0) {
         const intersect = intersects[0];
+        if (!intersect.object.visible) return;
         console.log("mouse clicked on mesh object, log it's linking value below");
         console.log(intersect.object.linked_val);
     }

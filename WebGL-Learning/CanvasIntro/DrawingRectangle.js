@@ -13,4 +13,6 @@ function main() {
     // 绘制蓝色矩形
     ctx.fillStyle = 'rgba(0, 0, 255, 1.0)';
     ctx.fillRect(120, 10, 150, 150);
+    ctx.fillStyle = 'rgba(255, 0, 0, 1.0)';
+    ctx.fillRect(10, 120, 150, 150);
 }

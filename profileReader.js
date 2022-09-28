@@ -30,4 +30,5 @@ function ProfileData(ts, data) {
     this.y = parseFloat(data[1]);
     this.z = - 1 * parseFloat(data[2]);
     this.batchCnt = parseInt(data[3]);
+    this.drawCallCnt = parseInt(data[7]);
 }
