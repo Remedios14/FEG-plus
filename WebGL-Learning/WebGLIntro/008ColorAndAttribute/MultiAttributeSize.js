@@ -1,20 +1,17 @@
-// ColoredPoints.js
-
 // 顶点着色器程序
 var VSHADER_SOURCE = `
 attribute vec4 a_Position;
+attribute float a_PointSize;
 void main() {
     gl_Position = a_Position;
+    gl_PointSize = a_PointSize;
 }
 `;
 
 // 片元着色器程序
 var FSHADER_SOURCE = `
-precision mediump float;
-uniform float u_Width;
-uniform float u_Height;
 void main() {
-    gl_FragColor = vec4(gl_FragCoord.x/u_Width, 0.0, gl_FragCoord.y/u_Height, 1.0);
+    gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
 }
 `;
 
@@ -43,8 +40,7 @@ function main() {
 
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    gl.drawArrays(gl.TRIANGLES, 0, n);
-    // POINTS、LINES、LINE_STRIP、LINE_LOOP、TRIANGLES、TRIANGLE_STRIP、TRIANGLE_FAN
+    gl.drawArrays(gl.POINTS, 0, n);
 }
 
 function initVertexBuffers(gl) {
@@ -52,6 +48,10 @@ function initVertexBuffers(gl) {
         0.0, 0.5, -0.5, -0.5, 0.5, -0.5
     ]);
     var n = 3;
+
+    var sizes = new Float32Array([
+        10.0, 20.0, 30.0
+    ])
 
     var vertexBuffer = gl.createBuffer();
     if (!vertexBuffer) {
@@ -73,6 +73,23 @@ function initVertexBuffers(gl) {
     gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0);
     // 连接 a_Position 变量与分配给它的缓冲区对象
     gl.enableVertexAttribArray(a_Position);
+
+    var sizeBuffer = gl.createBuffer();
+    if (!sizeBuffer) {
+        console.log('Failed to create the buffer object');
+        return -1;
+    }
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, sizeBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, sizes, gl.STATIC_DRAW);
+
+    var a_PointSize = gl.getAttribLocation(gl.program, 'a_PointSize');
+    if (a_PointSize < 0) {
+        console.log('Failed to get the storage location of a_PointSize');
+        return -1;
+    }
+    gl.vertexAttribPointer(a_PointSize, 1, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(a_PointSize)
 
     return n;
 }

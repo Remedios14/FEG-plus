@@ -1,20 +1,21 @@
-// ColoredPoints.js
-
-// 顶点着色器程序
+// 顶点着色器程序，使用 varying 变量传数据给片元着色器
 var VSHADER_SOURCE = `
 attribute vec4 a_Position;
+attribute vec4 a_Color;
+varying vec4 v_Color;
 void main() {
     gl_Position = a_Position;
+    gl_PointSize = 10.0;
+    v_Color = a_Color;
 }
 `;
 
-// 片元着色器程序
+// 片元着色器程序，接收上面传下来的数据
 var FSHADER_SOURCE = `
 precision mediump float;
-uniform float u_Width;
-uniform float u_Height;
+varying vec4 v_Color;
 void main() {
-    gl_FragColor = vec4(gl_FragCoord.x/u_Width, 0.0, gl_FragCoord.y/u_Height, 1.0);
+    gl_FragColor = v_Color;
 }
 `;
 
@@ -44,12 +45,13 @@ function main() {
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     gl.drawArrays(gl.TRIANGLES, 0, n);
-    // POINTS、LINES、LINE_STRIP、LINE_LOOP、TRIANGLES、TRIANGLE_STRIP、TRIANGLE_FAN
 }
 
 function initVertexBuffers(gl) {
-    var vertices = new Float32Array([
-        0.0, 0.5, -0.5, -0.5, 0.5, -0.5
+    var verticesColors = new Float32Array([
+        0.0, 0.5, 1.0, 0.0, 0.0,
+        -0.5, -0.5, 0.0, 1.0, 0.0,
+        0.5, -0.5, 0.0, 0.0, 1.0
     ]);
     var n = 3;
 
@@ -59,20 +61,26 @@ function initVertexBuffers(gl) {
         return -1;
     }
 
-    // 将缓冲区对象绑定到目标
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-    // 将数据写入缓冲区对象
-    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, verticesColors, gl.STATIC_DRAW);
+
+    var FSIZE = verticesColors.BYTES_PER_ELEMENT;
 
     var a_Position = gl.getAttribLocation(gl.program, 'a_Position');
     if (a_Position < 0) {
         console.log('Failed to get the storage location of a_Position');
         return -1;
     }
-    // 将缓冲区对象分配给 a_Positioon 变量
-    gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0);
-    // 连接 a_Position 变量与分配给它的缓冲区对象
+    gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, FSIZE * 5, 0);
     gl.enableVertexAttribArray(a_Position);
+
+    var a_Color = gl.getAttribLocation(gl.program, 'a_Color');
+    if (a_Color < 0) {
+        console.log('Failed to get the storage location of a_Color');
+        return -1;
+    }
+    gl.vertexAttribPointer(a_Color, 3, gl.FLOAT, false, FSIZE * 5, FSIZE * 2);
+    gl.enableVertexAttribArray(a_Color)
 
     return n;
 }
